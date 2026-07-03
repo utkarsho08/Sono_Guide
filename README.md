@@ -94,7 +94,12 @@ cd Sono_Guide
 ```
 
 ## 6. Quick Start
-Run the project bootstrapper to automatically configure the virtual environment, install PyTorch CPU, Ultralytics, OpenCV, and launch the application:
+The launcher:
+* Creates the project's virtual environment if necessary
+* Installs required dependencies
+* Verifies required assets
+* Launches the application
+
 ```bash
 python launcher.py
 ```
@@ -128,12 +133,39 @@ The `launcher.py` script supports several CLI parameters to control the startup 
 * **View bootstrapper plan**: `python launcher.py --show-plan`
 
 ## 9. Running without Launcher
-You can execute the application directly without the launcher:
+The recommended startup method is:
 ```bash
+python launcher.py
+```
+
+Developers may also execute the application directly after activating the project's virtual environment.
+
+Linux
+```bash
+source .venv/bin/activate
 python main.py
 ```
-* **Venv Auto-Handoff**: If run under system Python, `main.py` will automatically re-execute itself using the local virtual environment `.venv` interpreter (if present) and set up the `PYTHONPATH` correctly.
-* **Friendly Warnings**: If the virtual environment has not been initialized, it will gracefully exit with clear configuration instructions instead of showing raw stack tracebacks.
+
+macOS
+```bash
+source .venv/bin/activate
+python main.py
+```
+
+Windows (Command Prompt)
+```cmd
+.venv\Scripts\activate.bat
+python main.py
+```
+
+Windows (PowerShell)
+```powershell
+.venv\Scripts\Activate.ps1
+python main.py
+```
+
+* Running `python main.py` directly without activating the virtual environment may fail because dependencies are installed inside `.venv`.
+* `launcher.py` is the recommended startup method because it automatically prepares the environment before launching the application.
 
 ## 10. Requirements
 * **Operating System**: Windows 10/11, Ubuntu 20.04+, or macOS Catalina+
@@ -154,28 +186,24 @@ All system-wide configurations are centralized inside `src/utils/config.py` in i
 * **Overlay Config**: HUD crosshair dimensions, diagnostic grids, and compliance watermarks.
 * **Output Config**: Capture window timers, quality metrics, and thumbnail limits.
 
-## 13. Screenshots
-*(Placeholder image for main dashboard layout view)*
-![Dashboard Layout Mockup](https://raw.githubusercontent.com/utkarsho08/Sono_Guide/main/assets/images/dashboard_placeholder.png)
-
-## 14. Troubleshooting
+## 13. Troubleshooting
 * **Missing `cv2` or `torch`**: Ensure you run `python launcher.py` to compile the virtual environment and fetch the wheels.
 * **YOLO best.pt Not Found**: Place the model weights inside `assets/models/best.pt`.
 * For platform-specific errors, refer to [docs/TROUBLESHOOTING.md](file:///home/utkarsh/Documents/uhack4.0/SONO_GUIDE/docs/TROUBLESHOOTING.md).
 
-## 15. FAQ
-* **Does it require a CUDA GPU?** No, the installation is optimized for CPU-only execution, making it compatible with lightweight laptops.
+## 14. FAQ
+* **Does it require a CUDA GPU?** No, the installation is optimized on CPU-only execution, making it compatible with lightweight laptops.
 * **How are frames stored?** Captures are saved as JPEGs inside the `output/` directory, named with microsecond-accurate timestamps.
 
-## 16. Future Improvements
+## 15. Future Improvements
 * Add GPU/CUDA detection to automatically install PyTorch GPU wheels when graphics cards are present.
 * Support real-time video feed ingestion from local capture cards or webcams.
 
-## 17. Contributing
+## 16. Contributing
 Please refer to [docs/DEVELOPER_GUIDE.md](file:///home/utkarsh/Documents/uhack4.0/SONO_GUIDE/docs/DEVELOPER_GUIDE.md) for style guides, typing instructions, and branch workflows.
 
-## 18. License
+## 17. License
 This project is licensed under the MIT License - see the [LICENSE](file:///home/utkarsh/Documents/uhack4.0/SONO_GUIDE/LICENSE) file for details.
 
-## 19. Authors
+## 18. Authors
 * **Utkarsh** - Lead Architecture and Core Development (GitHub: [@utkarsho08](https://github.com/utkarsho08))
