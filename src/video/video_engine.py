@@ -200,8 +200,9 @@ class VideoEngine:
 
         img = Image.fromarray(frame_rgb)
 
-        win_w = self.ui.feed_label.winfo_width()
-        win_h = self.ui.feed_label.winfo_height()
+        # Query parent container size to determine scale constraints (avoids feedback loop)
+        win_w = self.ui.feed_container.winfo_width() - 4
+        win_h = self.ui.feed_container.winfo_height() - 4
 
         if win_w > 1 and win_h > 1:
             img_w, img_h = img.size

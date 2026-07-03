@@ -68,6 +68,7 @@ class UILayout:
         # Main Container
         self.container = ttk.Frame(self.root, style="Medical.TFrame")
         self.container.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        self.container.pack_propagate(False)  # Disable propagation on main container
 
         # 3. Right Sidebar (Telemetry + Gallery) - Pack first to prioritize its space
         self.right_panel = ttk.Frame(self.container, style="Panel.TFrame", width=CONFIG.ui.right_panel_width)
@@ -77,9 +78,14 @@ class UILayout:
         # 2. Live Ultrasound Feed (Left) - Pack second to fill remaining space
         self.left_panel = ttk.Frame(self.container, style="Panel.TFrame")
         self.left_panel.pack(side="left", fill="both", expand=True, padx=(0, 10))
-        self.left_panel.pack_propagate(False)  # Prevent feed_label image sizing loop
+        self.left_panel.pack_propagate(False)  # Disable propagation on left panel
+
+        # Feed Container - intermediate frame to isolate feed_label geometry
+        self.feed_container = ttk.Frame(self.left_panel, style="Panel.TFrame")
+        self.feed_container.pack(fill="both", expand=True)
+        self.feed_container.pack_propagate(False)  # Disable propagation on feed container
         
-        self.feed_label = tk.Label(self.left_panel, bg="#000000", bd=2, relief="flat")
+        self.feed_label = tk.Label(self.feed_container, bg="#000000", bd=2, relief="flat")
         self.feed_label.pack(fill="both", expand=True, padx=2, pady=2)
 
         # Telemetry
