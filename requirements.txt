@@ -1,0 +1,4 @@
+# Lightweight runtime dependencies (installed after AI stack by launcher).
+numpy
+opencv-python
+pillow

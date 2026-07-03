@@ -1,0 +1,4 @@
+# Optional packages — not required for core runtime.
+matplotlib
+pandas
+scipy

@@ -1,0 +1,6 @@
+# Heavy AI dependencies (installed separately; never bundled in requirements.txt).
+# torch and torchvision are installed CPU-only via PyTorch index URL in launcher.py.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+ultralytics
