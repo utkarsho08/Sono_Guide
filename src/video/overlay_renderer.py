@@ -1,23 +1,27 @@
-
 import cv2
 import numpy as np
 
+from utils.config import CONFIG
+
 
 class OverlayRenderer:
-    def __init__(self):
-        self.primary_color = (0, 229, 255)    # Cyan (locked)
-        self.secondary_color = (0, 165, 255)  # Orange (acquiring)
-        self.alert_color = (0, 0, 255)        # Red (alerts)
-        self.text_color = (255, 255, 255)
-        self.grid_color = (90, 90, 90)
-        self.guidance_color = (0, 255, 255)   # Yellow
-        self.locked_color = (0, 255, 0)       # Green (stability locked)
-        self.low_conf_color = (0, 0, 255)     # Red (low confidence)
+    """Renders visual indicators, grid lines, heatmaps, standard plane boxes, and telemetry HUD overlays."""
+
+    def __init__(self) -> None:
+        self.primary_color = CONFIG.overlay.primary_color
+        self.secondary_color = CONFIG.overlay.secondary_color
+        self.alert_color = CONFIG.overlay.alert_color
+        self.text_color = CONFIG.overlay.text_color
+        self.grid_color = CONFIG.overlay.grid_color
+        self.guidance_color = CONFIG.overlay.guidance_color
+        self.locked_color = CONFIG.overlay.locked_color
+        self.low_conf_color = CONFIG.overlay.low_conf_color
 
         self.scanline_y = 0
 
     # ---------- utility ----------
-    def normalize_box(self, box, frame_shape=None):
+    def normalize_box(self, box: list[float] | None, frame_shape: tuple[int, ...] | None = None) -> list[int] | None:
+        """Sanitize and clamp floating point boxes into integer pixel coordinates."""
         if box is None:
             return None
 
@@ -36,11 +40,12 @@ class OverlayRenderer:
             if abs(x2 - x1) < 10 or abs(y2 - y1) < 10:
                 return None
             return [x1, y1, x2, y2]
-        except:
+        except (ValueError, TypeError, IndexError):
             return None
 
     # ---------- grid ----------
-    def draw_grid(self, frame):
+    def draw_grid(self, frame: np.ndarray) -> np.ndarray:
+        """Draw a symmetric 3x3 reference grid with configured transparency."""
         h, w = frame.shape[:2]
         grid = frame.copy()
 
@@ -48,23 +53,25 @@ class OverlayRenderer:
             cv2.line(grid, (int(w*i/3), 0), (int(w*i/3), h), self.grid_color, 1)
             cv2.line(grid, (0, int(h*i/3)), (w, int(h*i/3)), self.grid_color, 1)
 
-        return cv2.addWeighted(grid, 0.18, frame, 0.82, 0)
+        return cv2.addWeighted(grid, CONFIG.overlay.grid_alpha, frame, CONFIG.overlay.grid_beta, 0)
 
     # ---------- scanline ----------
-    def draw_scanline(self, frame):
+    def draw_scanline(self, frame: np.ndarray) -> None:
+        """Draw an animated diagnostic scanline sweeping vertically across the feed."""
         h, w = frame.shape[:2]
-        self.scanline_y = (self.scanline_y + 4) % h
-        cv2.line(frame, (0, self.scanline_y), (w, self.scanline_y), (40, 40, 40), 1)
+        self.scanline_y = (self.scanline_y + CONFIG.overlay.scanline_step) % h
+        cv2.line(frame, (0, self.scanline_y), (w, self.scanline_y), CONFIG.overlay.scanline_color, 1)
 
     # ---------- crosshair ----------
-    def draw_crosshair(self, frame):
+    def draw_crosshair(self, frame: np.ndarray) -> None:
+        """Draw a static center crosshair marker to assist with probe alignment."""
         h, w = frame.shape[:2]
         cx, cy = w // 2, h // 2
-        cv2.drawMarker(frame, (cx, cy), (140,140,140), cv2.MARKER_CROSS, 22, 1)
+        cv2.drawMarker(frame, (cx, cy), CONFIG.overlay.crosshair_color, cv2.MARKER_CROSS, CONFIG.overlay.crosshair_marker_size, CONFIG.overlay.crosshair_thickness)
 
     # ---------- bounding box ----------
-    def draw_box(self, frame, box, label, stability_pct, confidence):
-
+    def draw_box(self, frame: np.ndarray, box: list[float] | None, label: str, stability_pct: float, confidence: float) -> None:
+        """Draw standard plane corner bounding box overlays."""
         box = self.normalize_box(box, frame.shape)
         if box is None:
             return
@@ -82,8 +89,11 @@ class OverlayRenderer:
         # Corner lengths proportional to box size
         bw = x2 - x1
         bh = y2 - y1
-        length = max(15, min(30, int(min(bw, bh) * 0.15)))
-        thickness = 2
+        length = max(
+            CONFIG.overlay.corner_min_len,
+            min(CONFIG.overlay.corner_max_len, int(min(bw, bh) * CONFIG.overlay.corner_ratio))
+        )
+        thickness = CONFIG.overlay.corner_thickness
 
         # Top-left
         cv2.line(frame, (x1, y1), (x1 + length, y1), state_color, thickness)
@@ -103,8 +113,8 @@ class OverlayRenderer:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, state_color, 1)
 
     # ---------- guidance ----------
-    def draw_guidance(self, frame, box):
-
+    def draw_guidance(self, frame: np.ndarray, box: list[float] | None) -> None:
+        """Draw directional arrow cues guiding the operator toward the center screen."""
         box = self.normalize_box(box, frame.shape)
         if box is None:
             return
@@ -117,14 +127,14 @@ class OverlayRenderer:
 
         guidance = ""
 
-        if bx < cx - 40:
+        if bx < cx - CONFIG.overlay.guidance_margin:
             guidance += "MOVE RIGHT"
-        elif bx > cx + 40:
+        elif bx > cx + CONFIG.overlay.guidance_margin:
             guidance += "MOVE LEFT"
 
-        if by < cy - 40:
+        if by < cy - CONFIG.overlay.guidance_margin:
             guidance += (" " if guidance else "") + "MOVE DOWN"
-        elif by > cy + 40:
+        elif by > cy + CONFIG.overlay.guidance_margin:
             guidance += (" " if guidance else "") + "MOVE UP"
 
         if guidance:
@@ -138,15 +148,15 @@ class OverlayRenderer:
                         cv2.FONT_HERSHEY_SIMPLEX, 1.0, self.guidance_color, 2)
 
     # ---------- stability ----------
-    def draw_stability_bar(self, frame, stability_pct):
-
+    def draw_stability_bar(self, frame: np.ndarray, stability_pct: float) -> None:
+        """Draw stability accumulation HUD bar overlay."""
         h, w = frame.shape[:2]
 
-        bar_w = 240
-        bar_h = 16
+        bar_w = CONFIG.overlay.stability_bar_width
+        bar_h = CONFIG.overlay.stability_bar_height
 
-        bar_x = w - bar_w - 30
-        bar_y = h - 60
+        bar_x = w - bar_w - CONFIG.overlay.stability_bar_margin_x
+        bar_y = h - CONFIG.overlay.stability_bar_margin_y
 
         cv2.rectangle(frame,
                       (bar_x, bar_y),
@@ -180,35 +190,35 @@ class OverlayRenderer:
                     1)
 
     # ---------- heatmap ----------
-    def draw_heatmap(self, frame):
-
+    def draw_heatmap(self, frame: np.ndarray) -> np.ndarray:
+        """Apply a jet colormap to highlight high-contrast anatomical features."""
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         heat = cv2.applyColorMap(
-            cv2.normalize(gray,None,0,255,cv2.NORM_MINMAX),
+            cv2.normalize(gray, None, 0, 255, cv2.NORM_MINMAX),
             cv2.COLORMAP_JET
         )
 
-        return cv2.addWeighted(frame,0.7,heat,0.3,0)
+        return cv2.addWeighted(frame, CONFIG.overlay.heatmap_alpha, heat, CONFIG.overlay.heatmap_beta, 0)
 
     # ---------- watermark ----------
-    def draw_watermark(self, frame):
-
+    def draw_watermark(self, frame: np.ndarray) -> None:
+        """Render PC-PNDT compliance warnings at the bottom of the feed."""
         h, w = frame.shape[:2]
 
         cv2.putText(
             frame,
-            "GENDER DETECTION DISABLED - PC-PNDT COMPLIANT",
+            CONFIG.overlay.watermark_text,
             (20, h - 20),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,
-            (200, 200, 255),
+            CONFIG.overlay.watermark_color,
             1
         )
 
     # ---------- render ----------
-    def render(self, frame, label, confidence, box, stability_pct, alerts):
-
+    def render(self, frame: np.ndarray | None, label: str, confidence: float, box: list[float] | None, stability_pct: float, alerts: list[str]) -> np.ndarray | None:
+        """Render the complete sequence of HUD diagnostics over the raw image frame."""
         if frame is None:
             return None
 
@@ -232,7 +242,7 @@ class OverlayRenderer:
 
         # Prominent red alert text at top of frame (matches demo)
         if alerts:
-            alert_text = "  ???  ".join(alerts)
+            alert_text = CONFIG.overlay.alert_separator.join(alerts)
             # Shadow
             cv2.putText(output, alert_text, (22, 42),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 4)

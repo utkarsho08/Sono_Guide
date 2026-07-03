@@ -1,28 +1,21 @@
-"""
-Bootstrap helper module for model verification and application launching.
-"""
-
-from __future__ import annotations
-
 import os
 import subprocess
 import sys
 from pathlib import Path
 
-from setup.dependencies import PROJECT_ROOT
+from utils.config import CONFIG
 
 
 def verify_models() -> None:
     """Verify that the required model weights and demo video assets exist."""
-    assets_dir = PROJECT_ROOT / "assets"
-    model_path = assets_dir / "models" / "best.pt"
-    video_path = assets_dir / "images" / "ultrasound_demo.mp4"
+    model_path = CONFIG.project.default_model
+    video_path = CONFIG.project.default_video
 
     missing = []
     if not model_path.is_file():
-        missing.append(f"Model file missing: {model_path.relative_to(PROJECT_ROOT)}")
+        missing.append(f"Model file missing: {model_path.relative_to(CONFIG.project.root)}")
     if not video_path.is_file():
-        missing.append(f"Demo video asset missing: {video_path.relative_to(PROJECT_ROOT)}")
+        missing.append(f"Demo video asset missing: {video_path.relative_to(CONFIG.project.root)}")
 
     if missing:
         print("[ERROR] Missing critical assets or model files:", file=sys.stderr)
@@ -42,17 +35,17 @@ def launch_application(venv_python: Path) -> int:
     print("[STATUS] Launching Sono-Guide application...")
 
     env = os.environ.copy()
-    src_dir = str(PROJECT_ROOT / "src")
+    src_dir = str(CONFIG.project.root / "src")
     existing_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = (
         src_dir if not existing_pythonpath else f"{src_dir}{os.pathsep}{existing_pythonpath}"
     )
 
-    main_py = PROJECT_ROOT / "main.py"
+    main_py = CONFIG.project.root / "main.py"
 
     try:
-        completed = subprocess.run([str(venv_python), str(main_py)], cwd=PROJECT_ROOT, env=env)
+        completed = subprocess.run([str(venv_python), str(main_py)], cwd=CONFIG.project.root, env=env)
         return completed.returncode
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError) as e:
         print(f"[ERROR] Application crash or unexpected error: {e}", file=sys.stderr)
         return 1

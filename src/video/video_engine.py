@@ -1,20 +1,24 @@
-import cv2
 import threading
 import time
+from typing import Any
+import cv2
 from PIL import Image, ImageTk
+import numpy as np
 
-from utils.utils import Utils
-from utils.paths import DEFAULT_VIDEO
-from video.calibration_monitor import CalibrationMonitor
 from ai.ai_detector import AIDetector
 from tracking.stability_tracker import StabilityTracker
+from utils.config import CONFIG
+from utils.paths import DEFAULT_VIDEO
+from utils.utils import Utils
 from video.auto_freeze import AutoFreeze
+from video.calibration_monitor import CalibrationMonitor
 from video.overlay_renderer import OverlayRenderer
 
 
 class VideoEngine:
+    """Manages the raw frame ingestion thread, calibration, AI detection, and UI frame push callbacks."""
 
-    def __init__(self, ui, video_path=None):
+    def __init__(self, ui: Any, video_path: str | None = None) -> None:
         if video_path is None:
             video_path = str(DEFAULT_VIDEO)
 
@@ -29,13 +33,13 @@ class VideoEngine:
         self.freezer = AutoFreeze()
         self.renderer = OverlayRenderer()
 
-        self.cap = None
+        self.cap: cv2.VideoCapture | None = None
         self.frame_id = 0
 
         self.setup_video()
 
-    def setup_video(self):
-
+    def setup_video(self) -> None:
+        """Initialize OpenCV VideoCapture using the configured video source path."""
         try:
             self.cap = cv2.VideoCapture(self.video_path)
 
@@ -43,12 +47,12 @@ class VideoEngine:
                 print("Video not found. Using simulation mode.")
                 self.cap = None
 
-        except Exception as e:
+        except (cv2.error, OSError) as e:
             print("Video setup error:", e)
             self.cap = None
 
-    def start(self):
-
+    def start(self) -> None:
+        """Start the video ingestion and processing background thread."""
         self.running = True
 
         self.thread = threading.Thread(
@@ -58,15 +62,15 @@ class VideoEngine:
 
         self.thread.start()
 
-    def stop(self):
-
+    def stop(self) -> None:
+        """Stop the video thread and release capture resources."""
         self.running = False
 
         if self.cap:
             self.cap.release()
 
-    def get_frame(self):
-
+    def get_frame(self) -> np.ndarray:
+        """Retrieve the next frame from the video source or fall back to simulated noise."""
         if self.cap:
 
             ret, frame = self.cap.read()
@@ -83,8 +87,8 @@ class VideoEngine:
 
         return frame
 
-    def run(self):
-
+    def run(self) -> None:
+        """Main processing loop executing ingestion, AI inference, and overlay rendering."""
         while self.running:
 
             frame = self.get_frame()
@@ -192,10 +196,10 @@ class VideoEngine:
                 # Low confidence — full panel visible
                 self.ui.root.after(0, lambda: self.ui.expand_feed(0))
 
-            time.sleep(1/30)
+            time.sleep(CONFIG.video.frame_delay)
 
-    def update_ui_frame(self, frame):
-
+    def update_ui_frame(self, frame: np.ndarray) -> None:
+        """Process, scale, and push the rendered frame onto the Tkinter GUI label."""
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         img = Image.fromarray(frame_rgb)
@@ -224,7 +228,7 @@ class VideoEngine:
             img_tk
         )
 
-    def update_feed_label(self, img_tk):
-
+    def update_feed_label(self, img_tk: ImageTk.PhotoImage) -> None:
+        """Directly assign the ImageTk PhotoImage reference to the feed label widget."""
         self.ui.feed_label.configure(image=img_tk)
         self.ui.feed_label.image = img_tk

@@ -37,6 +37,6 @@ def create_venv() -> None:
             check=True,
         )
         print("[STATUS] Virtual environment created successfully.")
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError) as e:
         print(f"[ERROR] Failed to create virtual environment: {e}", file=sys.stderr)
         sys.exit(1)

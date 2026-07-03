@@ -18,4 +18,3 @@ def check_python_version() -> None:
             file=sys.stderr,
         )
         sys.exit(1)
-base_path = sys.executable

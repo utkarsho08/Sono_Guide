@@ -142,10 +142,9 @@ def install_dependencies(
     if not missing_install and not missing_dev:
         return
 
-    # Always upgrade pip first if any installation is required
     try:
         upgrade_pip(venv_python)
-    except Exception as e:
+    except (RuntimeError, OSError) as e:
         print(f"[ERROR] Failed to upgrade pip: {e}. Attempting to proceed anyway.")
 
     # Step 2: Install PyTorch CPU if missing

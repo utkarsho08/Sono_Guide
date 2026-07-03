@@ -16,7 +16,7 @@ if VENV_PYTHON.is_file() and Path(sys.executable).resolve() != VENV_PYTHON.resol
     cmd = [str(VENV_PYTHON), __file__] + sys.argv[1:]
     try:
         sys.exit(subprocess.run(cmd, env=env).returncode)
-    except Exception as e:
+    except (OSError, subprocess.SubprocessError) as e:
         print(f"[ERROR] Failed to launch virtual environment: {e}", file=sys.stderr)
         sys.exit(1)
 elif not VENV_PYTHON.is_file():
@@ -24,25 +24,25 @@ elif not VENV_PYTHON.is_file():
 
 sys.path.insert(0, str(ROOT / "src"))
 
-
 try:
     import tkinter as tk
     from ui.ui_layout import UILayout
-    from video.video_engine import VideoEngine
+    from utils.config import CONFIG
     from utils.paths import DEFAULT_VIDEO
+    from video.video_engine import VideoEngine
 except ImportError as e:
     print(f"[ERROR] Failed to import dependencies: {e}", file=sys.stderr)
     print("[ERROR] Please initialize the virtual environment by running 'python launcher.py'.", file=sys.stderr)
     sys.exit(1)
 
 
-def main():
-
+def main() -> None:
+    """Main application entry point."""
     # Create main window
     root = tk.Tk()
-    root.title("AI Assisted Ultrasound Plane Detection")
-    root.geometry("1200x800")
-    root.minsize(900, 600)
+    root.title(CONFIG.ui.title)
+    root.geometry(CONFIG.ui.geometry)
+    root.minsize(CONFIG.ui.min_width, CONFIG.ui.min_height)
 
     # Initialize UI
     ui = UILayout(root)
@@ -50,14 +50,14 @@ def main():
     # Initialize Video Engine
     engine = VideoEngine(ui, video_path=str(DEFAULT_VIDEO))
 
-    # Link engine to UI (useful if UI buttons need engine access later)
+    # Link engine to UI
     ui.engine = engine
 
     # Graceful shutdown
-    def on_closing():
+    def on_closing() -> None:
         try:
             engine.stop()
-        except Exception:
+        except RuntimeError:
             pass
         root.destroy()
 
