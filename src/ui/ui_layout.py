@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 from ui.gallery_manager import GalleryManager
+from utils.config import CONFIG
 
 class StatBar(tk.Canvas):
     def __init__(self, parent, label, color, **kwargs):
@@ -32,13 +33,13 @@ class StatBar(tk.Canvas):
 class UILayout:
     def __init__(self, root):
         self.root = root
-        self.root.title("Sono-Guide – Professional AI Ultrasound Station")
-        self.root.geometry("1400x900")
-        self.root.configure(bg="#0A0F14")
+        self.root.title(CONFIG.ui.title)
+        self.root.geometry(CONFIG.ui.geometry)
+        self.root.configure(bg=CONFIG.ui.bg_main)
 
-        self._right_panel_width = 350
+        self._right_panel_width = CONFIG.ui.right_panel_width
         self._panel_phase = 0   # 0=full, 1=shrinking, 2=hidden
-        self._anim_target = 350
+        self._anim_target = CONFIG.ui.right_panel_width
 
         self.setup_styles()
         self.create_widgets()
@@ -46,12 +47,12 @@ class UILayout:
     def setup_styles(self):
         style = ttk.Style()
         style.theme_use('clam')
-        style.configure("Medical.TFrame", background="#0A0F14")
-        style.configure("Panel.TFrame", background="#111821", borderwidth=0)
-        style.configure("Header.TFrame", background="#0A0F14")
-        style.configure("Logo.TLabel", background="#0A0F14", foreground="#00E5FF", font=("Arial", 18, "bold"))
-        style.configure("Patient.TLabel", background="#0A0F14", foreground="#ffffff", font=("Arial", 10))
-        style.configure("Section.TLabel", background="#111821", foreground="#00E5FF", font=("Arial", 11, "bold"))
+        style.configure("Medical.TFrame", background=CONFIG.ui.bg_main)
+        style.configure("Panel.TFrame", background=CONFIG.ui.bg_panel, borderwidth=0)
+        style.configure("Header.TFrame", background=CONFIG.ui.bg_main)
+        style.configure("Logo.TLabel", background=CONFIG.ui.bg_main, foreground=CONFIG.ui.fg_logo, font=CONFIG.ui.font_logo)
+        style.configure("Patient.TLabel", background=CONFIG.ui.bg_main, foreground=CONFIG.ui.fg_white, font=CONFIG.ui.font_patient)
+        style.configure("Section.TLabel", background=CONFIG.ui.bg_panel, foreground=CONFIG.ui.fg_logo, font=CONFIG.ui.font_section)
 
     def create_widgets(self):
         # 1. Patient Header
@@ -68,17 +69,18 @@ class UILayout:
         self.container = ttk.Frame(self.root, style="Medical.TFrame")
         self.container.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
-        # 2. Live Ultrasound Feed (Left)
+        # 3. Right Sidebar (Telemetry + Gallery) - Pack first to prioritize its space
+        self.right_panel = ttk.Frame(self.container, style="Panel.TFrame", width=CONFIG.ui.right_panel_width)
+        self.right_panel.pack(side="right", fill="y")
+        self.right_panel.pack_propagate(False)
+
+        # 2. Live Ultrasound Feed (Left) - Pack second to fill remaining space
         self.left_panel = ttk.Frame(self.container, style="Panel.TFrame")
         self.left_panel.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        self.left_panel.pack_propagate(False)  # Prevent feed_label image sizing loop
         
         self.feed_label = tk.Label(self.left_panel, bg="#000000", bd=2, relief="flat")
         self.feed_label.pack(fill="both", expand=True, padx=2, pady=2)
-
-        # 3. Right Sidebar (Telemetry + Gallery)
-        self.right_panel = ttk.Frame(self.container, style="Panel.TFrame", width=350)
-        self.right_panel.pack(side="right", fill="y")
-        self.right_panel.pack_propagate(False)
 
         # Telemetry
         tel_frame = ttk.Frame(self.right_panel, style="Panel.TFrame")
@@ -86,21 +88,21 @@ class UILayout:
         ttk.Label(tel_frame, text="DIAGNOSTIC TELEMETRY", style="Section.TLabel").pack(anchor="w", pady=(0, 15))
 
         self.bars = {
-            'brightness': StatBar(tel_frame, "BRIGHTNESS", "#00E5FF"),
-            'sharpness': StatBar(tel_frame, "SHARPNESS", "#00A0FF"),
-            'confidence': StatBar(tel_frame, "CONFIDENCE", "#FFFFFF")
+            'brightness': StatBar(tel_frame, "BRIGHTNESS", CONFIG.ui.color_brightness),
+            'sharpness': StatBar(tel_frame, "SHARPNESS", CONFIG.ui.color_sharpness),
+            'confidence': StatBar(tel_frame, "CONFIDENCE", CONFIG.ui.color_confidence)
         }
         for bar in self.bars.values():
             bar.pack(fill="x", pady=5)
 
         # AI Status Message
         self.ai_status_label = ttk.Label(self.right_panel, text="INITIALIZING...", 
-                                        foreground="#00E5FF", background="#111821", font=("Arial", 12, "bold"))
+                                        foreground=CONFIG.ui.fg_logo, background=CONFIG.ui.bg_panel, font=CONFIG.ui.font_status)
         self.ai_status_label.pack(pady=10)
 
         # Standard Plane label
         self.plane_label = ttk.Label(self.right_panel, text="", 
-                                     foreground="#FFA500", background="#111821", font=("Arial", 10, "bold"),
+                                     foreground=CONFIG.ui.fg_orange, background=CONFIG.ui.bg_panel, font=CONFIG.ui.font_plane,
                                      wraplength=300)
         self.plane_label.pack(anchor="w", padx=20)
 
@@ -121,13 +123,17 @@ class UILayout:
         phase 1 → right panel shrinking (200px)
         phase 2 → right panel hidden (0px)
         """
-        targets = {0: 350, 1: 200, 2: 0}
-        target = targets.get(phase, 350)
+        targets = {
+            0: CONFIG.ui.right_panel_width,
+            1: CONFIG.ui.right_panel_shrink_mid,
+            2: CONFIG.ui.right_panel_shrink_min
+        }
+        target = targets.get(phase, CONFIG.ui.right_panel_width)
         if self._panel_phase != phase:
             self._panel_phase = phase
             self._animate_panel(target)
 
-    def _animate_panel(self, target_width, step=15):
+    def _animate_panel(self, target_width, step=CONFIG.ui.animation_step):
         current = self._right_panel_width
         if current == target_width:
             return
@@ -143,9 +149,10 @@ class UILayout:
             self.right_panel.pack_forget()
         else:
             try:
-                self.right_panel.pack(side="right", fill="y")
+                # Pack before left_panel to maintain packing layout order priority
+                self.right_panel.pack(side="right", fill="y", before=self.left_panel)
             except Exception:
-                pass
+                self.right_panel.pack(side="right", fill="y")
             self.right_panel.configure(width=new_width)
 
         if new_width != target_width:

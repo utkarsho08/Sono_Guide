@@ -204,9 +204,14 @@ class VideoEngine:
         win_h = self.ui.feed_label.winfo_height()
 
         if win_w > 1 and win_h > 1:
+            img_w, img_h = img.size
+            # Scale preserving aspect ratio within bounds
+            scale = min(win_w / img_w, win_h / img_h)
+            new_w = max(1, int(img_w * scale))
+            new_h = max(1, int(img_h * scale))
 
             img = img.resize(
-                (win_w, win_h),
+                (new_w, new_h),
                 Image.Resampling.LANCZOS
             )
 
